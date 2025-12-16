@@ -1,0 +1,83 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// Stores (Supermarket chains)
+model Store {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique @db.VarChar(100)
+  code      String   @unique @db.VarChar(20) // REWE, ALDI, LIDL, PENNY, DM, KARADAG
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  items Item[]
+
+  @@map("stores")
+}
+
+// Categories (Product categories)
+model Category {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique @db.VarChar(100)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  products Product[]
+
+  @@map("categories")
+}
+
+// Products (Knowledge base)
+model Product {
+  id         Int      @id @default(autoincrement())
+  name       String   @db.VarChar(255)
+  categoryId Int
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  category     Category       @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  items        Item[]
+  priceHistory PriceHistory[]
+
+  @@index([categoryId])
+  @@map("products")
+}
+
+// Shopping List Items
+model Item {
+  id         Int      @id @default(autoincrement())
+  productId  Int
+  storeId    Int
+  quantity   Int      @default(1)
+  isBought   Boolean  @default(false)
+  notes      String?  @db.Text
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  store   Store   @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+  @@index([storeId])
+  @@index([isBought])
+  @@map("items")
+}
+
+// Price History (for tracking product prices)
+model PriceHistory {
+  id         Int      @id @default(autoincrement())
+  productId  Int
+  price      Decimal  @db.Decimal(10, 2)
+  recordedAt DateTime @default(now())
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+  @@index([recordedAt])
+  @@map("price_history")
+}
