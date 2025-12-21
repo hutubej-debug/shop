@@ -44,6 +44,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      target: dev
     container_name: shopping-list-app
     restart: unless-stopped
     environment:
@@ -51,12 +52,21 @@ services:
       - DATABASE_URL=mysql://shopuser:shoppassword@mysql:3306/shopping_list
       - REDIS_URL=redis://redis:6379
       - NEXT_PUBLIC_SOCKET_URL=http://localhost
+      - PRISMA_QUERY_ENGINE_LIBRARY=/app/node_modules/.prisma/client/libquery_engine-debian-openssl-3.0.x.so.node
     ports:
       - '3000:3000'
-    volumes:
-      - .:/app
-      - /app/node_modules
-      - /app/.next
+    # Removed volumes for now to avoid node_modules issues
+    # volumes:
+    #   - ./prisma:/app/prisma
+    #   - ./app:/app/app
+    #   - ./pages:/app/pages
+    #   - ./lib:/app/lib
+    #   - ./hooks:/app/hooks
+    #   - ./store:/app/store
+    #   - ./types:/app/types
+    #   - ./public:/app/public
+    #   - ./.env:/app/.env
+    #   - /app/.next
     depends_on:
       mysql:
         condition: service_healthy
@@ -89,3 +99,4 @@ networks:
 volumes:
   mysql_data:
   redis_data:
+  node_modules:

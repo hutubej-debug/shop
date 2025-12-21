@@ -8,6 +8,7 @@ export type NextApiResponseServerIO = {
       io?: SocketIOServer;
     };
   };
+  end: () => void;
 };
 
 export interface SocketServer extends NetServer {

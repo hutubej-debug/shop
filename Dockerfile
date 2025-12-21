@@ -1,17 +1,21 @@
 # Base image
-FROM node:20-alpine AS base
+FROM node:20-slim AS base
 
 # Install dependencies only when needed
 FROM base AS deps
-RUN apk add --no-cache libc6-compat
+RUN apt-get update && apt-get install -y openssl libssl3 libssl-dev ca-certificates && \
+    ln -s /usr/lib/x86_64-linux-gnu/libssl.so.3 /usr/lib/libssl.so.3 || true && \
+    rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 
 # Copy package files
 COPY package.json package-lock.json* ./
-RUN npm ci
+RUN npm install
 
 # Development image
 FROM base AS dev
+RUN apt-get update && apt-get install -y openssl libssl3 libssl-dev ca-certificates && \
+    rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .

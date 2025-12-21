@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { useShoppingListStore } from '@/store/shoppingListStore';
 import { useSocket } from '@/hooks/useSocket';
 import StoreGroup from './components/StoreGroup';
@@ -12,7 +13,6 @@ export default function HomePage() {
   const [showAddForm, setShowAddForm] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  // Initial data fetch
   useEffect(() => {
     const loadData = async () => {
       await Promise.all([fetchItems(), fetchStores(), fetchCategories()]);
@@ -21,24 +21,12 @@ export default function HomePage() {
     loadData();
   }, []);
 
-  // Socket.IO real-time updates
   useEffect(() => {
     if (!socket) return;
 
-    socket.on('item:created', (newItem) => {
-      console.log('Item created:', newItem);
-      addItem(newItem);
-    });
-
-    socket.on('item:updated', (updatedItem) => {
-      console.log('Item updated:', updatedItem);
-      updateItem(updatedItem);
-    });
-
-    socket.on('item:deleted', (deletedId) => {
-      console.log('Item deleted:', deletedId);
-      deleteItem(deletedId);
-    });
+    socket.on('item:created', (newItem) => addItem(newItem));
+    socket.on('item:updated', (updatedItem) => updateItem(updatedItem));
+    socket.on('item:deleted', (deletedId) => deleteItem(deletedId));
 
     return () => {
       socket.off('item:created');
@@ -55,9 +43,7 @@ export default function HomePage() {
         body: JSON.stringify(updates),
       });
       const data = await response.json();
-      if (!data.success) {
-        console.error('Failed to update item:', data.error);
-      }
+      if (!data.success) console.error('Failed to update item:', data.error);
     } catch (error) {
       console.error('Error updating item:', error);
     }
@@ -65,21 +51,15 @@ export default function HomePage() {
 
   const handleDeleteItem = async (id: number) => {
     if (!confirm('Are you sure you want to delete this item?')) return;
-    
     try {
-      const response = await fetch(`/api/items/${id}`, {
-        method: 'DELETE',
-      });
+      const response = await fetch(`/api/items/${id}`, { method: 'DELETE' });
       const data = await response.json();
-      if (!data.success) {
-        console.error('Failed to delete item:', data.error);
-      }
+      if (!data.success) console.error('Failed to delete item:', data.error);
     } catch (error) {
       console.error('Error deleting item:', error);
     }
   };
 
-  // Group items by store
   const itemsByStore = stores.reduce((acc, store) => {
     acc[store.id] = items.filter((item) => item.storeId === store.id);
     return acc;
@@ -87,79 +67,106 @@ export default function HomePage() {
 
   const totalItems = items.filter(item => !item.isBought).length;
   const boughtItems = items.filter(item => item.isBought).length;
+  const totalPrice = items.reduce((sum, item) => {
+    const price = item.product?.priceHistory?.[0]?.price;
+    return sum + (price ? Number(price) * item.quantity : 0);
+  }, 0);
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading shopping list...</p>
+          <div className="w-16 h-16 spinner rounded-full mx-auto mb-4"></div>
+          <p className="text-white/60 text-lg">Loading your shopping list...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-8 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-7xl mx-auto">
+    <main className="min-h-screen py-8 px-4 sm:px-6 lg:px-8 page-transition">
+      <div className="max-w-6xl mx-auto">
         {/* Header */}
-        <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">
-            🛒 Shopping List Manager
+        <header className="text-center mb-10">
+          <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-gradient-to-br from-blue-500 to-purple-600 mb-4 float">
+            <span className="text-4xl">🛒</span>
+          </div>
+          <h1 className="text-4xl sm:text-5xl font-bold text-white mb-3">
+            Shopping List
           </h1>
-          <p className="text-lg text-gray-600">
-            Organize by store • Track prices • Real-time sync
+          <p className="text-white/60 text-lg flex items-center justify-center gap-3">
+            <span>Organize</span>
+            <span className="w-1 h-1 bg-white/40 rounded-full"></span>
+            <span>Track</span>
+            <span className="w-1 h-1 bg-white/40 rounded-full"></span>
+            <span>Sync</span>
             {isConnected && (
-              <span className="ml-2 inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                <span className="w-2 h-2 bg-green-600 rounded-full mr-1 animate-pulse"></span>
+              <span className="ml-2 inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                <span className="w-2 h-2 bg-emerald-400 rounded-full mr-2 animate-pulse"></span>
                 Live
               </span>
             )}
           </p>
-        </div>
+        </header>
 
-        {/* Stats */}
-        <div className="bg-white rounded-lg shadow-md p-6 mb-8">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="text-center">
-              <p className="text-3xl font-bold text-blue-600">{totalItems}</p>
-              <p className="text-gray-600">Active Items</p>
-            </div>
-            <div className="text-center">
-              <p className="text-3xl font-bold text-green-600">{boughtItems}</p>
-              <p className="text-gray-600">Completed</p>
-            </div>
-            <div className="text-center">
-              <p className="text-3xl font-bold text-purple-600">{stores.length}</p>
-              <p className="text-gray-600">Stores</p>
-            </div>
+        {/* Stats Cards */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+          <div className="glass rounded-2xl p-5 text-center card-hover">
+            <div className="text-3xl font-bold text-white mb-1">{totalItems}</div>
+            <div className="text-white/50 text-sm font-medium">To Buy</div>
+          </div>
+          <div className="glass rounded-2xl p-5 text-center card-hover">
+            <div className="text-3xl font-bold text-emerald-400 mb-1">{boughtItems}</div>
+            <div className="text-white/50 text-sm font-medium">Completed</div>
+          </div>
+          <div className="glass rounded-2xl p-5 text-center card-hover">
+            <div className="text-3xl font-bold text-purple-400 mb-1">{stores.length}</div>
+            <div className="text-white/50 text-sm font-medium">Stores</div>
+          </div>
+          <div className="glass rounded-2xl p-5 text-center card-hover">
+            <div className="text-3xl font-bold text-blue-400 mb-1">€{totalPrice.toFixed(2)}</div>
+            <div className="text-white/50 text-sm font-medium">Est. Total</div>
           </div>
         </div>
 
-        {/* Add Item Button */}
-        <div className="mb-8 text-center">
+        {/* Action Buttons */}
+        <div className="flex flex-col sm:flex-row justify-center gap-4 mb-10">
           <button
             onClick={() => setShowAddForm(true)}
-            className="inline-flex items-center px-6 py-3 bg-blue-600 text-white text-lg font-semibold rounded-lg shadow-lg hover:bg-blue-700 transition-all transform hover:scale-105"
+            className="btn-primary inline-flex items-center justify-center px-8 py-4 text-white text-lg font-semibold rounded-xl shadow-lg"
           >
-            <span className="text-2xl mr-2">+</span>
-            Add New Item
+            <svg className="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            Add Item
           </button>
+          <Link
+            href="/settings"
+            className="btn-secondary inline-flex items-center justify-center px-8 py-4 text-white text-lg font-semibold rounded-xl shadow-lg"
+          >
+            <svg className="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+            Settings
+          </Link>
         </div>
 
         {/* Store Groups */}
         {items.length === 0 ? (
-          <div className="bg-white rounded-xl shadow-lg p-12 text-center">
-            <div className="text-6xl mb-4">📝</div>
-            <h3 className="text-2xl font-semibold text-gray-900 mb-2">
-              Your shopping list is empty
+          <div className="glass rounded-3xl p-12 text-center">
+            <div className="w-24 h-24 mx-auto mb-6 rounded-full bg-white/10 flex items-center justify-center">
+              <span className="text-5xl">📝</span>
+            </div>
+            <h3 className="text-2xl font-bold text-white mb-3">
+              Your list is empty
             </h3>
-            <p className="text-gray-600 mb-6">
-              Start by adding items to your list
+            <p className="text-white/60 mb-8 max-w-md mx-auto">
+              Start adding items to your shopping list. Organize by store, track prices, and sync in real-time.
             </p>
             <button
               onClick={() => setShowAddForm(true)}
-              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              className="btn-primary px-8 py-3 text-white font-semibold rounded-xl"
             >
               Add Your First Item
             </button>
@@ -179,7 +186,11 @@ export default function HomePage() {
           </div>
         )}
 
-        {/* Add Item Modal */}
+        {/* Footer */}
+        <footer className="mt-12 text-center text-white/30 text-sm">
+          <p>Made with ❤️ for smarter shopping</p>
+        </footer>
+
         {showAddForm && (
           <AddItemForm
             onClose={() => setShowAddForm(false)}

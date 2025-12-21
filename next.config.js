@@ -1,9 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: 'standalone',
-  experimental: {
-    serverActions: true,
-  },
   webpack: (config, { isServer }) => {
     // Socket.IO configuration
     if (!isServer) {
